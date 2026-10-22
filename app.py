@@ -1,12 +1,12 @@
-"""Run: python app.py   |   Open: http://127.0.0.1:8050"""
+"""Run: python dash_app.py   |   Open: http://127.0.0.1:8050"""
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from dash import Dash, html, dcc, Input, Output, State, ctx
 from model import simulate, sample, propagated_voltage, T_END, STIM_START, STIM_END
 
-app = Dash(__name__)
-app.title = 'Stimulus to Signal | Dynamic Scientific Story'
+dash_app = Dash(__name__)
+dash_app.title = 'Stimulus to Signal | Dynamic Scientific Story'
 
 FIG = dict(margin=dict(l=48,r=25,t=36,b=48), paper_bgcolor='#fff', plot_bgcolor='#fffdf7', font=dict(color='#493a46',size=12))
 BLUE, PINK, GOLD, PURPLE = '#a84577', '#e7a3bd', '#bd8a18', '#81566e'
@@ -19,7 +19,7 @@ def chart(title, height=340):
 def section(n, label, question, graph_id, note):
     return html.Section(className='view', children=[html.H2(f'{n}. {label}'),html.P(question,className='question'),dcc.Graph(id=graph_id,config={'displaylogo':False}),html.P(note,className='note')])
 
-app.layout=html.Main([
+dash_app.layout=html.Main([
     html.H1('Stimulus → Signal'),
     html.P('An interactive scientific story of neural excitation and propagation · Hodgkin–Huxley point-membrane model',className='subtitle'),
     html.Div(className='controls',children=[
@@ -40,11 +40,11 @@ app.layout=html.Main([
     html.Footer('Python · NumPy · Plotly · Dash | Original six-view scientific simulation')
 ])
 
-@app.callback(Output('tick','disabled'),Output('play','children'),Input('play','n_clicks'),State('tick','disabled'),prevent_initial_call=True)
+@dash_app.callback(Output('tick','disabled'),Output('play','children'),Input('play','n_clicks'),State('tick','disabled'),prevent_initial_call=True)
 def toggle(_, disabled):
     return not disabled, '▶ Play' if not disabled else '⏸ Pause'
 
-@app.callback(Output('time','value'),Input('tick','n_intervals'),Input('step','n_clicks'),Input('reset','n_clicks'),State('time','value'),prevent_initial_call=True)
+@dash_app.callback(Output('time','value'),Input('tick','n_intervals'),Input('step','n_clicks'),Input('reset','n_clicks'),State('time','value'),prevent_initial_call=True)
 def advance(_, __, ___, time):
     triggered=ctx.triggered_id
     if triggered=='reset': return 0
@@ -52,7 +52,7 @@ def advance(_, __, ___, time):
     if triggered=='tick': return round(0 if time>=T_END else min(T_END,time+.25),2)
     return time
 
-@app.callback([Output(f'v{i}','figure') for i in range(1,7)]+[Output('readout','children')],
+@dash_app.callback([Output(f'v{i}','figure') for i in range(1,7)]+[Output('readout','children')],
               Input('stim','value'),Input('na','value'),Input('k','value'),Input('time','value'),Input('comparison','value'))
 def update_all(stim,na,k,time,compare):
     d=simulate(float(stim),float(na),float(k)); s=sample(d,time); t=d['t']; v=d['V'];
@@ -117,5 +117,8 @@ def update_all(stim,na,k,time,compare):
     values=f'Time {time:.2f} ms | Membrane {s["V"]:.2f} mV | Na⁺ current {s["INa"]:.2f} µA/cm² | K⁺ current {s["IK"]:.2f} µA/cm² | Spike in simulation: {"Yes" if fired else "No"}'
     return f1,f2,f3,f4,f5,f6,values
 
+# Expose the underlying Flask WSGI application to Vercel.
+app = dash_app.server
+
 if __name__=='__main__':
-    app.run(debug=False,port=8050)
+    dash_app.run(debug=False,port=8050)
